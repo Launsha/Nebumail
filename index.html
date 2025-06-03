@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NebulaMail - Pembaca Gmail Futuristik</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        @keyframes neon {
+            0%, 39%, 41%, 59%, 61%, 100% {
+                text-shadow: 
+                    0 0 5px #fff,
+                    0 0 10px #fff,
+                    0 0 20px #0fa,
+                    0 0 40px #0fa,
+                    0 0 80px #0fa,
+                    0 0 90px #0fa,
+                    0 0 100px #0fa;
+            }
+            40%, 60% {
+                text-shadow: none;
+            }
+        }
+        @keyframes borderGlow {
+            0% { border-color: rgba(0, 255, 170, 0.1); }
+            50% { border-color: rgba(0, 255, 170, 0.8); }
+            100% { border-color: rgba(0, 255, 170, 0.1); }
+        }
+        .menu-item::after {
+            content: '';
+            display: block;
+            width: 0;
+            height: 2px;
+            background: #0fa;
+            transition: width .3s;
+        }
+        .menu-item:hover::after {
+            width: 100%;
+        }
+        .email-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 255, 170, 0.3);
+        }
+        .theme-switch {
+            transition: all 0.3s;
+        }
+        .theme-switch:hover {
+            transform: rotate(30deg);
+        }
+        .dark .email-content {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+        }
+        .light .email-content {
+            background: linear-gradient(145deg, #f8fafc, #e2e8f0);
+        }
+        .glow-card {
+            transition: all 0.3s;
+        }
+        .glow-card:hover {
+            box-shadow: 0 0 15px rgba(0, 255, 170, 0.5);
+        }
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #0fa, #00f);
+            background-size: 200% 200%;
+            animation: progressBar 2s ease infinite;
+        }
+        @keyframes progressBar {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-montserrat transition-colors duration-300">
+    <div id="progress-bar" class="progress-bar fixed top-0 left-0 z-50"></div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-gray-900 z-50 flex flex-col items-center justify-center">
+        <div class="relative w-32 h-32 mb-8">
+            <div class="absolute inset-0 rounded-full border-4 border-teal-400 border-opacity-25 animate-spin"></div>
+            <div class="absolute inset-4 rounded-full border-4 border-teal-400 border-opacity-50 animate-spin animation-delay-200"></div>
+            <div class="absolute inset-8 rounded-full border-4 border-teal-400 animate-spin animation-delay-400"></div>
+        </div>
+        <h1 class="text-4xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500">NebulaMail</h1>
+        <p class="text-gray-400 animate-pulse">Memuat pengalaman futuristik...</p>
+    </div>
+
+    <div id="app" class="hidden">
+        <!-- Header -->
+        <header class="border-b border-gray-800 bg-gray-900 bg-opacity-90 backdrop-blur-md fixed top-0 left-0 right-0 z-40">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <div class="w-10 h-10 bg-gradient-to-r from-teal-500 to-blue-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-at text-white text-xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-400">NebulaMail</h1>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <button id="theme-toggle" class="theme-switch p-2 rounded-full bg-gray-800 hover:bg-gray-700">
+                        <i class="fas fa-moon dark:hidden"></i>
+                        <i class="fas fa-sun hidden dark:inline"></i>
+                    </button>
+                    
+                    <div id="signin-container" class="relative">
+                        <button id="signin-button" class="px-4 py-2 bg-gradient-to-r from-teal-500 to-blue-500 rounded-lg font-medium hover:from-teal-600 hover:to-blue-600 transition-all duration-300 flex items-center space-x-2">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Masuk dengan Google</span>
+                        </button>
+                    </div>
+                    
+                    <div id="user-container" class="hidden">
+                        <button id="user-menu" class="flex items-center space-x-2">
+                            <img id="user-avatar" class="w-8 h-8 rounded-full" src="" alt="Foto Profil">
+                            <span id="user-name" class="font-medium"></span>
+                            <i class="fas fa-chevron-down text-sm"></i>
+                        </button>
+                        <div id="dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg z-50 border border-gray-700">
+                            <div class="py-1">
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 menu-item">Profil</a>
+                                <a href="#" id="signout-button" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 menu-item">Keluar</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="pt-20 pb-10 min-h-screen">
+            <!-- Auth Section -->
+            <section id="auth-section" class="container mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
+                <div class="max-w-2xl mx-auto">
+                    <div class="relative mb-10">
+                        <div class="absolute -inset-4 bg-gradient-to-r from-teal-500 to-blue-500 rounded-xl blur opacity-25 animate-pulse"></div>
+                        <div class="relative bg-gray-800 rounded-xl p-8 border border-gray-700">
+                            <div class="w-24 h-24 mx-auto mb-6 bg-gradient-to-r from-teal-500 to-blue-500 rounded-full flex items-center justify-center animate-float">
+                                <i class="fas fa-envelope-open-text text-4xl text-white"></i>
+                            </div>
+                            <h2 class="text-3xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-400">Selamat Datang di NebulaMail</h2>
+                            <p class="text-gray-400 mb-6">Pengalaman membaca email yang futuristik dengan antarmuka interaktif dan desain modern. Hubungkan akun Gmail Anda untuk mulai menjelajahi.</p>
+                            <div class="w-full flex justify-center">
+                                <button id="signin-button2" class="px-6 py-3 bg-gradient-to-r from-teal-500 to-blue-500 rounded-lg font-medium hover:from-teal-600 hover:to-blue-600 transition-all duration-300 flex items-center space-x-2">
+                                    <i class="fas fa-sign-in-alt"></i>
+                                    <span>Masuk dengan Google</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- App Section -->
+            <section id="app-section" class="hidden container mx-auto px-4 py-8">
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <!-- Sidebar -->
+                    <aside class="lg:w-1/4">
+                        <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden mb-6">
+                            <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+                                <h2 class="text-xl font-bold">Kotak Masuk</h2>
+                                <span id="inbox-count" class="px-3 py-1 bg-blue-500 rounded-full text-xs font-bold">0</span>
+                            </div>
+                            <div class="p-2">
+                                <button class="category-btn w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 flex items-center active" data-category="primary">
+                                    <i class="fas fa-inbox mr-3 text-blue-400"></i>
+                                    <span>Utama</span>
+                                </button>
+                                <button class="category-btn w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 flex items-center" data-category="social">
+                                    <i class="fab fa-facebook-messenger mr-3 text-purple-400"></i>
+                                    <span>Sosial</span>
+                                </button>
+                                <button class="category-btn w-full text-left px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 flex items-center" data-category="promotions">
+                                    <i class="fas fa-tag mr-3 text-yellow-400"></i>
+                                    <span>Promosi</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden glow-card">
+                            <div class="p-4 border-b border-gray-700">
+                                <h2 class="text-xl font-bold">Statistik</h2>
+                            </div>
+                            <div class="p-4">
+                                <div class="mb-4">
+                                    <div class="flex justify-between mb-1">
+                                        <span class="text-sm text-gray-400">Pembacaan Email</span>
+                                        <span class="text-sm font-medium" id="read-percentage">0%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-2.5">
+                                        <div id="read-bar" class="bg-gradient-to-r from-teal-500 to-blue-500 h-2.5 rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1">
+                                        <span class="text-sm text-gray-400">Respon Cepat</span>
+                                        <span class="text-sm font-medium" id="replied-percentage">0%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-700 rounded-full h-2.5">
+                                        <div id="replied-bar" class="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+
+                    <!-- Email Content -->
+                    <div class="lg:w-3/4">
+                        <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden mb-6">
+                            <div class="p-4 border-b border-gray-700">
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                        <i class="fas fa-search text-gray-500"></i>
+                                    </div>
+                                    <input id="search-input" type="text" class="w-full bg-gray-700 border-0 text-gray-200 placeholder-gray-500 rounded-lg pl-10 pr-12 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Cari email...">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                                        <button id="search-btn" class="p-1 rounded-lg hover:bg-gray-600 transition-colors">
+                                            <i class="fas fa-arrow-right text-gray-400"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="divide-y divide-gray-700">
+                                <!-- Email list placeholder -->
+                                <div id="email-list" class="min-h-[60vh]">
+                                    <!-- Email items will be rendered here -->
+                                </div>
+                                
+                                <div id="pagination" class="p-4 flex justify-between items-center">
+                                    <button id="prev-btn" class="px-4 py-2 bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                        Sebelumnya
+                                    </button>
+                                    <span id="page-info" class="text-sm text-gray-400">Halaman 1 dari 1</span>
+                                    <button id="next-btn" class="px-4 py-2 bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                        Selanjutnya
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Email Detail Modal -->
+            <div id="email-modal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden items-center justify-center px-4 py-10">
+                <div class="relative w-full max-w-4xl bg-gray-800 rounded-xl border border-gray-700 shadow-xl overflow-hidden max-h-screen">
+                    <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                        <button id="close-modal" class="p-2 rounded-lg hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <div class="flex space-x-3">
+                            <button class="p-2 rounded-lg hover:bg-gray-700 transition-colors tooltip" data-tooltip="Balas">
+                                <i class="fas fa-reply"></i>
+                            </button>
+                            <button class="p-2 rounded-lg hover:bg-gray-700 transition-colors tooltip" data-tooltip="Hapus">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="p-2 rounded-lg hover:bg-gray-700 transition-colors tooltip" data-tooltip="Arsipkan">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="email-content overflow-y-auto p-6">
+                        <div id="modal-loading" class="flex justify-center items-center h-64">
+                            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500"></div>
+                        </div>
+                        <div id="modal-content" class="hidden">
+                            <div class="mb-6">
+                                <h1 id="email-subject" class="text-2xl font-bold mb-2"></h1>
+                                <div class="flex items-start justify-between mb-4 pt-2 border-t border-gray-700">
+                                    <div class="flex items-center space-x-3">
+                                        <img id="sender-avatar" class="w-10 h-10 rounded-full" src="" alt="Pengirim">
+                                        <div>
+                                            <div class="flex items-center space-x-2">
+                                                <span id="sender-name" class="font-medium"></span>
+                                                <span id="sender-email" class="text-gray-400 text-sm"></span>
+                                            </div>
+                                            <div class="text-sm text-gray-400" id="email-date"></div>
+                                        </div>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <button class="p-2 rounded-lg hover:bg-gray-700 transition-colors">
+                                            <i class="fas fa-ellipsis-h"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="email-body" class="prose max-w-none dark:prose-invert prose-headings:text-white prose-a:text-blue-400 prose-p:text-gray-300 prose-ul:text-gray-300"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-gray-800 border-t border-gray-700 py-6">
+            <div class="container mx-auto px-4">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <div class="flex items-center space-x-2 mb-4 md:mb-0">
+                        <div class="w-8 h-8 bg-gradient-to-r from-teal-500 to-blue-500 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-at text-white text-sm"></i>
+                        </div>
+                        <span class="text-xl font-bold">NebulaMail</span>
+                    </div>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fab fa-github"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fab fa-discord"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors">
+                            <i class="fas fa-envelope"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="mt-6 text-center md:text-left">
+                    <p class="text-gray-500 text-sm">© 2023 NebulaMail - Pembaca Gmail Futuristik. Semua hak cipta dilindungi.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Hide loading screen after everything is loaded
+            setTimeout(() => {
+                document.getElementById('loading-screen').classList.add('opacity-0');
+                document.getElementById('app').classList.remove('hidden');
+                document.getElementById('app').classList.add('flex', 'flex-col', 'min-h-screen');
+                
+                setTimeout(() => {
+                    document.getElementById('loading-screen').classList.add('hidden');
+                }, 300);
+            }, 1500);
+
+            // Theme toggle functionality
+            const themeToggle = document.getElementById('theme-toggle');
+            const html = document.documentElement;
+            
+            themeToggle.addEventListener('click', () => {
+                html.classList.toggle('dark');
+                html.classList.toggle('light');
+                
+                // Save preference to localStorage
+                const isDark = html.classList.contains('dark');
+                localStorage.setItem('darkMode', isDark);
+            });
+            
+            // Check for saved theme preference
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const savedTheme = localStorage.getItem('darkMode');
+            
+            if (savedTheme !== null) {
+                html.classList.toggle('dark', savedTheme === 'true');
+                html.classList.toggle('light', savedTheme === 'false');
+            } else if (prefersDark) {
+                html.classList.add('dark');
+                html.classList.remove('light');
+            } else {
+                html.classList.add('light');
+                html.classList.remove('dark');
+            }
+
+            // Mock data for demo purposes
+            let currentUser = null;
+            let emails = [];
+            let filteredEmails = [];
+            let currentCategory = 'primary';
+            let currentPage = 1;
+            const emailsPerPage = 10;
+            
+            // Initialize Google OAuth
+            const handleClientLoad = () => {
+                google.accounts.id.initialize({
+                    client_id: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+                    callback: handleCredentialResponse,
+                    auto_select: false
+                });
+                
+                google.accounts.id.renderButton(
+                    document.getElementById('signin-container'),
+                    {
+                        theme: 'filled_blue',
+                        size: 'large',
+                        text: 'signin_with',
+                        shape: 'pill'
+                    }
+                );
+                
+                // Also add click handler for the custom button
+                document.getElementById('signin-button').addEventListener('click', () => {
+                    google.accounts.id.prompt();
+                });
+                
+                document.getElementById('signin-button2').addEventListener('click', () => {
+                    google.accounts.id.prompt();
+                });
+            };
+            
+            const handleCredentialResponse = (response) => {
+                // In a real app, you would verify the credential on your backend
+                console.log('ID Token: ' + response.credential);
+                
+                // Extract user info from the credential (for demo purposes)
+                const payload = JSON.parse(atob(response.credential.split('.')[1]));
+                console.log(payload);
+                
+                // Mock user data
+                currentUser = {
+                    name: payload.name,
+                    email: payload.email,
+                    picture: payload.picture
+                };
+                
+                // Update UI
+                document.getElementById('user-name').textContent = currentUser.name;
+                document.getElementById('user-avatar').src = currentUser.picture;
+                
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('app-section').classList.remove('hidden');
+                document.getElementById('user-container').classList.remove('hidden');
+                document.getElementById('signin-container').classList.add('hidden');
+                
+                // Load mock emails
+                loadMockEmails();
+            };
+            
+            // Load mock emails for demo
+            const loadMockEmails = () => {
+                // Generate mock emails
+                const categories = ['primary', 'social', 'promotions'];
+                const senders = [
+                    { name: 'LinkedIn', email: 'no-reply@linkedin.com', category: 'social' },
+                    { name: 'Amazon', email: 'no-reply@amazon.com', category: 'promotions' },
+                    { name: 'GitHub', email: 'notifications@github.com', category: 'social' },
+                    { name: 'Twitter', email: 'info@twitter.com', category: 'social' },
+                    { name: 'Shopee', email: 'promo@shopee.com', category: 'promotions' },
+                    { name: 'Google', email: 'accounts-noreply@google.com', category: 'primary' },
+                    { name: 'John Doe', email: 'john.doe@example.com', category: 'primary' },
+                    { name: 'Jane Smith', email: 'jane.smith@example.com', category: 'primary' },
+                    { name: 'Netflix', email: 'no-reply@netflix.com', category: 'promotions' },
+                    { name: 'Spotify', email: 'newsletter@spotify.com', category: 'promotions' }
+                ];
+                
+                const subjects = [
+                    'Pemberitahuan keamanan akun Anda',
+                    'Promo spesial untuk pelanggan setia',
+                    'Pekerjaan baru cocok untuk Anda',
+                    'Anda memiliki 1 pesan baru',
+                    'Tagihan bulanan Anda',
+                    'Konfirmasi perubahan kata sandi',
+                    'Undangan untuk bergabung dengan proyek kami',
+                    'Peringatan aktivitas mencurigakan',
+                    'Pembaruan kebijakan privasi kami',
+                    'Selamat! Anda memenangkan hadiah'
+                ];
+                
+                const bodies = [
+                    '<p>Kami mendeteksi aktivitas login baru pada akun Anda. Jika ini bukan Anda, silakan segera ubah kata sandi Anda.</p>',
+                    '<p>Nikmati diskon 50% untuk semua produk di toko kami. Penawaran ini hanya berlaku hingga akhir bulan.</p><p><a href="#">Klik di sini</a> untuk melihat katalog produk kami.</p>',
+                    '<p>Berdasarkan profil Anda, kami menemukan beberapa pekerjaan yang mungkin menarik untuk Anda:</p><ul><li>Frontend Developer</li><li>UI/UX Designer</li><li>Product Manager</li></ul>',
+                    '<p>Anda memiliki 1 pesan baru dari John Doe:</p><blockquote>"Hai, bagaimana kabarmu? Sudah lama kita tidak bertemu."</blockquote>',
+                    '<p>Tagihan bulanan Anda telah dibuat. Total yang harus dibayar: Rp150.000.</p><p>Batas pembayaran: 30 April 2023.</p>',
+                    '<p>Kami menerima permintaan untuk mengubah kata sandi akun Anda. Jika ini adalah Anda, silakan abaikan email ini.</p>',
+                    '<p>Anda diundang untuk bergabung dengan proyek "Pengembangan Aplikasi Nebula" sebagai Frontend Developer.</p>',
+                    '<p>Kami mendeteksi percobaan login dari perangkat baru di Jakarta, Indonesia. Silakan verifikasi jika ini adalah Anda.</p>',
+                    '<p>Kami telah memperbarui kebijakan privasi kami. Silakan tinjau perubahan yang telah kami buat.</p>',
+                    '<p>Selamat! Anda memenangkan hadiah utama dalam undian kami. Klik tombol di bawah ini untuk mengklaim hadiah Anda.</p><p><button style="background: #0fa; color: #000; padding: 10px 20px; border-radius: 5px; border: none;">Klaim Hadiah</button></p>'
+                ];
+                
+                emails = [];
+                
+                for (let i = 0; i < 50; i++) {
+                    const randomSender = senders[Math.floor(Math.random() * senders.length)];
+                    const randomSubject = subjects[Math.floor(Math.random() * subjects.length)];
+                    const randomBody = bodies[Math.floor(Math.random() * bodies.length)];
+                    const randomDate = new Date(Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000));
+                    const isRead = Math.random() > 0.3;
+                    const isStarred = Math.random() > 0.8;
+                    const isImportant = Math.random() > 0.7;
+                    
+                    emails.push({
+                        id: `mock-email-${i}`,
+                        subject: randomSubject,
+                        snippet: randomBody.replace(/<[^>]+>/g, '').substring(0, 100) + '...',
+                        body: randomBody,
+                        from: randomSender.name,
+                        fromEmail: randomSender.email,
+                        to: currentUser.email,
+                        date: randomDate.toISOString(),
+                        category: randomSender.category,
+                        read: isRead,
+                        starred: isStarred,
+                        important: isImportant,
+                        labels: []
+                    });
+                }
+                
+                // Sort by date (newest first)
+                emails.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                filterEmails();
+                updateEmailUI();
+                updateStats();
+            };
+            
+            // Filter emails by category
+            const filterEmails = () => {
+                if (currentCategory === 'all') {
+                    filteredEmails = [...emails];
+                } else {
+                    filteredEmails = emails.filter(email => email.category === currentCategory);
+                }
+                
+                currentPage = 1;
+                updatePagination();
+            };
+            
+            // Update email list UI
+            const updateEmailUI = () => {
+                const emailList = document.getElementById('email-list');
+                emailList.innerHTML = '';
+                
+                const startIndex = (currentPage - 1) * emailsPerPage;
+                const endIndex = Math.min(startIndex + emailsPerPage, filteredEmails.length);
+                const emailsToShow = filteredEmails.slice(startIndex, endIndex);
+                
+                if (emailsToShow.length === 0) {
+                    emailList.innerHTML = `
+                        <div class="flex flex-col items-center justify-center py-16 text-gray-500">
+                            <i class="fas fa-envelope-open-text text-5xl mb-4"></i>
+                            <p class="text-lg">Tidak ada email di kategori ini</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                emailsToShow.forEach(email => {
+                    const emailDate = new Date(email.date);
+                    const formattedDate = emailDate.toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    const emailItem = document.createElement('div');
+                    emailItem.className = `email-item p-4 hover:bg-gray-700 cursor-pointer transition-all duration-200 ${email.read ? 'bg-gray-800 bg-opacity-60' : 'bg-gray-800'}`;
+                    emailItem.setAttribute('data-email-id', email.id);
+                    emailItem.innerHTML = `
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0 pt-1">
+                                <div class="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+                                    ${email.from ? email.from.charAt(0).toUpperCase() : '?'}
+                                </div>
+                            </div>
+                            <div class="flex-grow">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h3 class="text-base font-medium ${email.read ? 'text-gray-400' : 'text-white'}">${email.from || 'Tidak ada pengirim'}</h3>
+                                        <p class="text-sm ${email.read ? 'text-gray-500' : 'text-gray-300'}">${email.subject || 'Tidak ada subjek'}</p>
+                                    </div>
+                                    <div class="text-xs text-gray-500 flex items-center">
+                                        <span>${formattedDate}</span>
+                                        <i class="fas fa-star ml-2 ${email.starred ? 'text-yellow-400' : 'text-gray-600'}"></i>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-400 mt-1 truncate">${email.snippet || 'Tidak ada isi'}</p>
+                            </div>
+                        </div>
+                    `;
+                    
+                    emailItem.addEventListener('click', () => {
+                        openEmailModal(email.id);
+                    });
+                    
+                    emailList.appendChild(emailItem);
+                });
+            };
+            
+            // Update pagination UI
+            const updatePagination = () => {
+                const totalPages = Math.ceil(filteredEmails.length / emailsPerPage);
+                const prevBtn = document.getElementById('prev-btn');
+                const nextBtn = document.getElementById('next-btn');
+                const pageInfo = document.getElementById('page-info');
+                
+                pageInfo.textContent = `Halaman ${currentPage} dari ${totalPages}`;
+                
+                prevBtn.disabled = currentPage === 1;
+                nextBtn.disabled = currentPage >= totalPages;
+            };
+            
+            // Open email in modal
+            const openEmailModal = (emailId) => {
+                const email = emails.find(e => e.id === emailId);
+                if (!email) return;
+                
+                // Mark as read
+                if (!email.read) {
+                    email.read = true;
+                    updateEmailUI();
+                    updateStats();
+                }
+                
+                const modal = document.getElementById('email-modal');
+                const modalLoading = document.getElementById('modal-loading');
+                const modalContent = document.getElementById('modal-content');
+                
+                modal.classList.remove('hidden');
+                modalLoading.classList.remove('hidden');
+                modalContent.classList.add('hidden');
+                
+                // Simulate loading
+                setTimeout(() => {
+                    document.getElementById('email-subject').textContent = email.subject || 'Tidak ada subjek';
+                    document.getElementById('sender-name').textContent = email.from || 'Tidak ada pengirim';
+                    document.getElementById('sender-email').textContent = email.fromEmail || '';
+                    document.getElementById('email-date').textContent = new Date(email.date).toLocaleString('id-ID', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    // Set sender avatar
+                    const senderAvatar = document.getElementById('sender-avatar');
+                    if (email.from) {
+                        senderAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(email.from)}&background=random`;
+                    } else {
+                        senderAvatar.src = '';
+                        senderAvatar.classList.add('bg-gray-700');
+                    }
+                    
+                    // Set email body
+                    document.getElementById('email-body').innerHTML = email.body || '<p>Tidak ada konten</p>';
+                    
+                    modalLoading.classList.add('hidden');
+                    modalContent.classList.remove('hidden');
+                }, 800);
+            };
+            
+            // Close email modal
+            document.getElementById('close-modal').addEventListener('click', () => {
+                document.getElementById('email-modal').classList.add('hidden');
+            });
+            
+            // Update statistics
+            const updateStats = () => {
+                const totalEmails = emails.length;
+                const readEmails = emails.filter(e => e.read).length;
+                const repliedEmails = Math.floor(readEmails * 0.3); // Mock replied emails
+                
+                const readPercentage = Math.round((readEmails / totalEmails) * 100);
+                const repliedPercentage = Math.round((repliedEmails / readEmails) * 100) || 0;
+                
+                document.getElementById('read-percentage').textContent = `${readPercentage}%`;
+                document.getElementById('replied-percentage').textContent = `${repliedPercentage}%`;
+                document.getElementById('read-bar').style.width = `${readPercentage}%`;
+                document.getElementById('replied-bar').style.width = `${repliedPercentage}%`;
+                document.getElementById('inbox-count').textContent = emails.filter(e => !e.read).length;
+            };
+            
+            // Category buttons
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelector('.category-btn.active').classList.remove('active');
+                    this.classList.add('active');
+                    
+                    currentCategory = this.dataset.category;
+                    filterEmails();
+                    updateEmailUI();
+                });
+            });
+            
+            // Pagination buttons
+            document.getElementById('prev-btn').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateEmailUI();
+                    updatePagination();
+                }
+            });
+            
+            document.getElementById('next-btn').addEventListener('click', () => {
+                const totalPages = Math.ceil(filteredEmails.length / emailsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateEmailUI();
+                    updatePagination();
+                }
+            });
+            
+            // Search functionality
+            document.getElementById('search-btn').addEventListener('click', () => {
+                const searchTerm = document.getElementById('search-input').value.toLowerCase();
+                
+                if (searchTerm.trim() === '') {
+                    filterEmails();
+                } else {
+                    filteredEmails = emails.filter(email => 
+                        email.subject.toLowerCase().includes(searchTerm) || 
+                        email.from.toLowerCase().includes(searchTerm) || 
+                        email.snippet.toLowerCase().includes(searchTerm)
+                    );
+                    
+                    currentPage = 1;
+                    updatePagination();
+                }
+                
+                updateEmailUI();
+            });
+            
+            document.getElementById('search-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('search-btn').click();
+                }
+            });
+            
+            // User dropdown menu
+            document.getElementById('user-menu').addEventListener('click', () => {
+                document.getElementById('dropdown-menu').classList.toggle('hidden');
+            });
+            
+            // Sign out functionality
+            document.getElementById('signout-button').addEventListener('click', () => {
+                // In a real app, you would implement proper sign-out
+                currentUser = null;
+                
+                document.getElementById('auth-section').classList.remove('hidden');
+                document.getElementById('app-section').classList.add('hidden');
+                document.getElementById('user-container').classList.add('hidden');
+                document.getElementById('signin-container').classList.remove('hidden');
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#user-container')) {
+                    document.getElementById('dropdown-menu').classList.add('hidden');
+                }
+            });
+            
+            // Load the Google OAuth library
+            window.onload = handleClientLoad;
+        });
+    </script>
+</body>
+</html>
